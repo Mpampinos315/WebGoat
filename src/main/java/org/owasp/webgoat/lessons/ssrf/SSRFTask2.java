@@ -34,9 +34,17 @@ public class SSRFTask2 implements AssignmentEndpoint {
     try {
         URL parsedUrl = new URL(url);
 
-        // Επιτρέπουμε μόνο συγκεκριμένο domain
-        if (!"ifconfig.pro".equals(parsedUrl.getHost())) {
-            return getFailedResult("Blocked URL: only ifconfig.pro is allowed");
+        // Allow only http(s) protocol and exact host match
+        String host = parsedUrl.getHost();
+        String protocol = parsedUrl.getProtocol();
+        int port = parsedUrl.getPort();
+        // Only allow http or https, no custom ports, and exact host match (case-insensitive)
+        if (
+            (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) ||
+            !"ifconfig.pro".equalsIgnoreCase(host) ||
+            (port != -1 && !((port == 80 && "http".equalsIgnoreCase(protocol)) || (port == 443 && "https".equalsIgnoreCase(protocol))))
+        ) {
+            return getFailedResult("Blocked URL: only http(s)://ifconfig.pro[:default_port] is allowed");
         }
 
         String html;
