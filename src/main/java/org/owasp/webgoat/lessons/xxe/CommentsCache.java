@@ -90,6 +90,17 @@ public class CommentsCache {
     var xsr = xif.createXMLStreamReader(new StringReader(xml));
 
     var unmarshaller = jc.createUnmarshaller();
+    // Harden JAXB Unmarshaller against XXE
+    try {
+      unmarshaller.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+    } catch (Exception e) {
+      // Property not supported, log or handle as needed
+    }
+    try {
+      unmarshaller.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+    } catch (Exception e) {
+      // Property not supported, log or handle as needed
+    }
     return (Comment) unmarshaller.unmarshal(xsr);
   }
 
