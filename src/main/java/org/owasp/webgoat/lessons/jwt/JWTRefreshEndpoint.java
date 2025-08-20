@@ -43,8 +43,8 @@ import org.springframework.web.bind.annotation.RestController;
 public class JWTRefreshEndpoint implements AssignmentEndpoint {
 
   public static final String PASSWORD = "bm5nhSkxCXZkKRy4";
-  private static final String JWT_PASSWORD = "bm5n3SkxCX4kKRy4";
-  private static final List<String> validRefreshTokens = new ArrayList<>();
+  private static final byte[] JWT_PASSWORD = Keys.secretKeyFor(SignatureAlgorithm.HS512).getEncoded();
+  private static final Map<String, Long> validRefreshTokens = new ConcurrentHashMap<>();
 
   @PostMapping(
       value = "/JWT/refresh/login",
@@ -68,7 +68,8 @@ public class JWTRefreshEndpoint implements AssignmentEndpoint {
     Map<String, Object> claims = Map.of("admin", "false", "user", user);
     String token =
         Jwts.builder()
-            .setIssuedAt(new Date(System.currentTimeMillis() + TimeUnit.DAYS.toDays(10)))
+            .setIssuedAt(new Date(System.currentTimeMillis()))
+            .setExpiration(new Date(System.currentTimeMillis() + TimeUnit.DAYS.toMillis(10)))
             .setClaims(claims)
             .signWith(io.jsonwebtoken.SignatureAlgorithm.HS512, JWT_PASSWORD)
             .compact();
@@ -92,8 +93,9 @@ public class JWTRefreshEndpoint implements AssignmentEndpoint {
       Claims claims = (Claims) jwt.getBody();
       String user = (String) claims.get("user");
       if ("Tom".equals(user)) {
-        if ("none".equals(jwt.getHeader().get("alg"))) {
-          return ok(success(this).feedback("jwt-refresh-alg-none").build());
+        if ("none".equalsIgnoreCase((String) jwt.getHeader().get("alg"))) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
+        }
         }
         return ok(success(this).build());
       }
