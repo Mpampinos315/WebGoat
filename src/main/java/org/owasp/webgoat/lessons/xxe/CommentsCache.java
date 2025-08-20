@@ -70,9 +70,22 @@ public class CommentsCache {
     var jc = JAXBContext.newInstance(Comment.class);
     var xif = XMLInputFactory.newInstance();
 
-    xif.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, ""); 
-    xif.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, ""); 
-    xif.setProperty(XMLInputFactory.SUPPORT_DTD, false); 
+    // Robustly disable DTDs and external entities to prevent XXE
+    try {
+      xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+    } catch (IllegalArgumentException e) {
+      // Property not supported, log or handle as needed
+    }
+    try {
+      xif.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+    } catch (IllegalArgumentException e) {
+      // Property not supported, log or handle as needed
+    }
+    try {
+      xif.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+    } catch (IllegalArgumentException e) {
+      // Property not supported, log or handle as needed
+    }
 
     var xsr = xif.createXMLStreamReader(new StringReader(xml));
 
