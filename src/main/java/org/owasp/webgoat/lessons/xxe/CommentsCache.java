@@ -77,6 +77,16 @@ public class CommentsCache {
       // Property not supported, log or handle as needed
     }
     try {
+      xif.setProperty("javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES", false);
+    } catch (IllegalArgumentException e) {
+      // Property not supported, log or handle as needed
+    }
+    try {
+      xif.setProperty("javax.xml.stream.XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES", false);
+    } catch (IllegalArgumentException e) {
+      // Property not supported, log or handle as needed
+    }
+    try {
       xif.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
     } catch (IllegalArgumentException e) {
       // Property not supported, log or handle as needed
