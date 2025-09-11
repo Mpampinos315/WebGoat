@@ -30,33 +30,58 @@ public class SSRFTask2 implements AssignmentEndpoint {
     return furBall(url);
   }
 
-  protected AttackResult furBall(String url) {
+ protected AttackResult furBall(String url) {
     try {
         URL parsedUrl = new URL(url);
-
-        // Allow only http(s) protocol and exact host match
+        
+        // ΔΙΟΡΘΩΣΗ SSRF: Πιο αυστηρός έλεγχος URL
         String host = parsedUrl.getHost();
         String protocol = parsedUrl.getProtocol();
         int port = parsedUrl.getPort();
-        // Only allow http or https, no custom ports, and exact host match (case-insensitive)
-        if (
-            (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) ||
-            !"ifconfig.pro".equalsIgnoreCase(host) ||
-            (port != -1 && !((port == 80 && "http".equalsIgnoreCase(protocol)) || (port == 443 && "https".equalsIgnoreCase(protocol))))
-        ) {
-            return getFailedResult("Blocked URL: only http(s)://ifconfig.pro[:default_port] is allowed");
+        
+        // Validate protocol
+        if (!"http".equalsIgnoreCase(protocol) && !"https".equalsIgnoreCase(protocol)) {
+            return getFailedResult("Blocked URL: only http/https protocols allowed");
         }
-
+        
+        // Validate host - πιο αυστηρός έλεγχος
+        if (host == null || !host.equalsIgnoreCase("ifconfig.pro")) {
+            return getFailedResult("Blocked URL: only ifconfig.pro host is allowed");
+        }
+        
+        // Validate port
+        if (port != -1 && 
+            !((port == 80 && "http".equalsIgnoreCase(protocol)) || 
+              (port == 443 && "https".equalsIgnoreCase(protocol)))) {
+            return getFailedResult("Blocked URL: only default ports allowed");
+        }
+        
+        // ΔΙΟΡΘΩΣΗ: Χρήση HttpClient με timeout αντί για parsedUrl.openStream()
         String html;
-        try (InputStream in = parsedUrl.openStream()) {
-            html = new String(in.readAllBytes(), StandardCharsets.UTF_8)
-                     .replaceAll("\n", "<br>");
-        } catch (IOException e) {
+        try {
+            // Χρήση Java 11+ HttpClient για καλύτερο έλεγχο
+            java.net.http.HttpClient client = java.net.http.HttpClient.newBuilder()
+                .connectTimeout(java.time.Duration.ofSeconds(5))
+                .build();
+                
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                .uri(parsedUrl.toURI())
+                .timeout(java.time.Duration.ofSeconds(10))
+                .GET()
+                .build();
+                
+            java.net.http.HttpResponse<String> response = client.send(request, 
+                java.net.http.HttpResponse.BodyHandlers.ofString());
+                
+            html = response.body().replaceAll("\n", "<br>");
+            
+        } catch (IOException | InterruptedException | java.net.URISyntaxException e) {
             html = "<html><body>Although the http://ifconfig.pro site is down, "
                  + "you still managed to solve this exercise the right way!</body></html>";
         }
+        
         return success(this).feedback("ssrf.success").output(html).build();
-
+        
     } catch (MalformedURLException e) {
         return getFailedResult("Invalid URL");
     } catch (Exception e) {
