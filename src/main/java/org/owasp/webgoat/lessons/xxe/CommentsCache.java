@@ -119,8 +119,8 @@ public class CommentsCache {
     comment.setUser(user.getUsername());
     if (visibleForAllUsers) {
       comments.add(comment);
-    } else {
-      var comments = userComments.getOrDefault(user.getUsername(), new Comments());
+    } else {   
+      var comments = userComments.getOrDefault(user, new Comments());
       comments.add(comment);
       userComments.put(user, comments);
     }
