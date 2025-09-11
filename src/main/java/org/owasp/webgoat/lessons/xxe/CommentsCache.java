@@ -70,49 +70,22 @@ public class CommentsCache {
     var jc = JAXBContext.newInstance(Comment.class);
     var xif = XMLInputFactory.newInstance();
 
-    // Robustly disable DTDs and external entities to prevent XXE
-    try {
-      xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
-    } catch (IllegalArgumentException e) {
-      // Property not supported, log or handle as needed
-    }
-    try {
-      xif.setProperty("javax.xml.stream.XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES", false);
-    } catch (IllegalArgumentException e) {
-      // Property not supported, log or handle as needed
-    }
-    try {
-      xif.setProperty("javax.xml.stream.XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES", false);
-    } catch (IllegalArgumentException e) {
-      // Property not supported, log or handle as needed
-    }
-    try {
-      xif.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-    } catch (IllegalArgumentException e) {
-      // Property not supported, log or handle as needed
-    }
-    try {
-      xif.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-    } catch (IllegalArgumentException e) {
-      // Property not supported, log or handle as needed
-    }
+    // ΔΙΟΡΘΩΣΗ XXE: Πλήρης απενεργοποίηση επικίνδυνων χαρακτηριστικών
+    xif.setProperty(XMLInputFactory.SUPPORT_DTD, false);
+    xif.setProperty(XMLInputFactory.IS_SUPPORTING_EXTERNAL_ENTITIES, false);
+    xif.setProperty(XMLInputFactory.IS_REPLACING_ENTITY_REFERENCES, false);
+    xif.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+    xif.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
 
     var xsr = xif.createXMLStreamReader(new StringReader(xml));
-
     var unmarshaller = jc.createUnmarshaller();
-    // Harden JAXB Unmarshaller against XXE
-    try {
-      unmarshaller.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-    } catch (Exception e) {
-      // Property not supported, log or handle as needed
-    }
-    try {
-      unmarshaller.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
-    } catch (Exception e) {
-      // Property not supported, log or handle as needed
-    }
+    
+    // Επιπλέον προστασία στο JAXB
+    unmarshaller.setProperty(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+    unmarshaller.setProperty(XMLConstants.ACCESS_EXTERNAL_SCHEMA, "");
+    
     return (Comment) unmarshaller.unmarshal(xsr);
-  }
+}
 
   public void addComment(Comment comment, WebGoatUser user, boolean visibleForAllUsers) {
     comment.setDateTime(LocalDateTime.now().format(fmt));
