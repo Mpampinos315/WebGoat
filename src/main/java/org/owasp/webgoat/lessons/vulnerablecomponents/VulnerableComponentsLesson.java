@@ -21,40 +21,85 @@ import org.springframework.web.bind.annotation.RestController;
 @AssignmentHints({"vulnerable.hint"})
 public class VulnerableComponentsLesson implements AssignmentEndpoint {
 
-  @PostMapping("/VulnerableComponents/attack1")
-  public @ResponseBody AttackResult completed(@RequestParam String payload) {
+@PostMapping("/VulnerableComponents/attack1")
+public @ResponseBody AttackResult completed(@RequestParam String payload) {
+    // ΔΙΟΡΘΩΣΗ: Ασφαλής διαμόρφωση XStream
     XStream xstream = new XStream();
-    xstream.allowTypes(new Class[] { ContactImpl.class });
+    
+    // Απενεργοποίηση όλων των τύπων πρώτα (whitelist approach)
+    XStream.setupDefaultSecurity(xstream);
+    
+    // Επιτρέπουμε μόνο συγκεκριμένους ασφαλείς τύπους
+    xstream.allowTypes(new Class[] { 
+        ContactImpl.class,
+        String.class,
+        // Προσθήκη άλλων ασφαλών τύπων αν χρειάζεται
+    });
+    
+    // Επιτρέπουμε μόνο συγκεκριμένα packages
+    xstream.allowTypesByWildcard(new String[] {
+        "org.owasp.webgoat.lessons.vulnerablecomponents.*"
+    });
+    
     xstream.alias("contact", ContactImpl.class);
     xstream.ignoreUnknownElements();
+    
     Contact contact = null;
-
     try {
-      if (!StringUtils.isEmpty(payload)) {
-        payload =
-            payload
+        if (!StringUtils.isEmpty(payload)) {
+            // ΔΙΟΡΘΩΣΗ: Validation του payload πριν το deserialization
+            if (payload.length() > 10000) { // Περιορισμός μεγέθους
+                return failed(this)
+                    .feedback("vulnerable-components.close")
+                    .output("Payload too large")
+                    .build();
+            }
+            
+            // Έλεγχος για επικίνδυνα patterns
+            if (payload.contains("ProcessBuilder") || 
+                payload.contains("Runtime") ||
+                payload.contains("exec") ||
+                payload.contains("java.lang.Runtime")) {
+                return failed(this)
+                    .feedback("vulnerable-components.close")
+                    .output("Potentially malicious payload detected")
+                    .build();
+            }
+            
+            payload = payload
                 .replace("+", "")
                 .replace("\r", "")
                 .replace("\n", "")
                 .replace("> ", ">")
                 .replace(" <", "<");
-      }
-      contact = (Contact) xstream.fromXML(payload);
+        }
+        
+        // Deserialization με exception handling
+        contact = (Contact) xstream.fromXML(payload);
+        
     } catch (Exception ex) {
-      return failed(this).feedback("vulnerable-components.close").output(ex.getMessage()).build();
+        return failed(this)
+            .feedback("vulnerable-components.close")
+            .output("Deserialization failed: " + ex.getMessage())
+            .build();
     }
-
+    
     try {
-      if (null != contact) {
-        contact.getFirstName(); // trigger the example like
-        // https://x-stream.github.io/CVE-2013-7285.html
-      }
-      if (!(contact instanceof ContactImpl)) {
-        return success(this).feedback("vulnerable-components.success").build();
-      }
+        if (null != contact) {
+            contact.getFirstName();
+        }
+        if (!(contact instanceof ContactImpl)) {
+            return success(this).feedback("vulnerable-components.success").build();
+        }
     } catch (Exception e) {
-      return success(this).feedback("vulnerable-components.success").output(e.getMessage()).build();
+        return success(this)
+            .feedback("vulnerable-components.success")
+            .output(e.getMessage())
+            .build();
     }
-    return failed(this).feedback("vulnerable-components.fromXML").feedbackArgs(contact).build();
-  }
+    
+    return failed(this)
+        .feedback("vulnerable-components.fromXML")
+        .feedbackArgs(contact)
+        .build();
 }
