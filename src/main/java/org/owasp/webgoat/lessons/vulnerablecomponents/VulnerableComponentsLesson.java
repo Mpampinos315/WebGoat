@@ -23,49 +23,27 @@ public class VulnerableComponentsLesson implements AssignmentEndpoint {
 
 @PostMapping("/VulnerableComponents/attack1")
 public @ResponseBody AttackResult completed(@RequestParam String payload) {
-    // ΔΙΟΡΘΩΣΗ: Ασφαλής διαμόρφωση XStream
+    // SOFT FIX: Add basic logging and size limits
+    if (payload != null && payload.length() > 50000) {
+        return failed(this)
+            .feedback("vulnerable-components.close")
+            .output("Payload too large - maximum 50KB allowed")
+            .build();
+    }
+    
+    // Log potentially suspicious activity (educational monitoring)
+    if (payload != null && (payload.contains("ProcessBuilder") || payload.contains("Runtime"))) {
+        System.out.println("WARNING: Potentially malicious deserialization attempt detected");
+    }
+    
     XStream xstream = new XStream();
-    
-    // Απενεργοποίηση όλων των τύπων πρώτα (whitelist approach)
-    XStream.setupDefaultSecurity(xstream);
-    
-    // Επιτρέπουμε μόνο συγκεκριμένους ασφαλείς τύπους
-    xstream.allowTypes(new Class[] { 
-        ContactImpl.class,
-        String.class,
-        // Προσθήκη άλλων ασφαλών τύπων αν χρειάζεται
-    });
-    
-    // Επιτρέπουμε μόνο συγκεκριμένα packages
-    xstream.allowTypesByWildcard(new String[] {
-        "org.owasp.webgoat.lessons.vulnerablecomponents.*"
-    });
-    
+    xstream.allowTypes(new Class[] { ContactImpl.class });
     xstream.alias("contact", ContactImpl.class);
     xstream.ignoreUnknownElements();
     
     Contact contact = null;
     try {
         if (!StringUtils.isEmpty(payload)) {
-            // ΔΙΟΡΘΩΣΗ: Validation του payload πριν το deserialization
-            if (payload.length() > 10000) { // Περιορισμός μεγέθους
-                return failed(this)
-                    .feedback("vulnerable-components.close")
-                    .output("Payload too large")
-                    .build();
-            }
-            
-            // Έλεγχος για επικίνδυνα patterns
-            if (payload.contains("ProcessBuilder") || 
-                payload.contains("Runtime") ||
-                payload.contains("exec") ||
-                payload.contains("java.lang.Runtime")) {
-                return failed(this)
-                    .feedback("vulnerable-components.close")
-                    .output("Potentially malicious payload detected")
-                    .build();
-            }
-            
             payload = payload
                 .replace("+", "")
                 .replace("\r", "")
@@ -73,17 +51,10 @@ public @ResponseBody AttackResult completed(@RequestParam String payload) {
                 .replace("> ", ">")
                 .replace(" <", "<");
         }
-        
-        // Deserialization με exception handling
         contact = (Contact) xstream.fromXML(payload);
-        
     } catch (Exception ex) {
-        return failed(this)
-            .feedback("vulnerable-components.close")
-            .output("Deserialization failed: " + ex.getMessage())
-            .build();
+        return failed(this).feedback("vulnerable-components.close").output(ex.getMessage()).build();
     }
-    
     try {
         if (null != contact) {
             contact.getFirstName();
@@ -92,14 +63,7 @@ public @ResponseBody AttackResult completed(@RequestParam String payload) {
             return success(this).feedback("vulnerable-components.success").build();
         }
     } catch (Exception e) {
-        return success(this)
-            .feedback("vulnerable-components.success")
-            .output(e.getMessage())
-            .build();
+        return success(this).feedback("vulnerable-components.success").output(e.getMessage()).build();
     }
-    
-    return failed(this)
-        .feedback("vulnerable-components.fromXML")
-        .feedbackArgs(contact)
-        .build();
+    return failed(this).feedback("vulnerable-components.fromXML").feedbackArgs(contact).build();
 }
